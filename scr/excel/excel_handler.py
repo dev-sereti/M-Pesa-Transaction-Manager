@@ -120,7 +120,6 @@ class ExcelHandler:
 
         wb: OpenPyxlWorkbook = Workbook()
 
-        # Some type stubs mark wb.active as Optional; guard for static type checkers.
         ws_opt = getattr(wb, "active", None)
         if ws_opt is None:
             ws: Worksheet = wb.create_sheet(self.sheet_name)
@@ -149,10 +148,7 @@ class ExcelHandler:
         return cast(Worksheet, wb.create_sheet(self.sheet_name))
 
     def _get_or_create_headers(self, ws: Worksheet) -> Dict[str, int]:
-        """
-        Returns mapping: header name -> column index.
-        If sheet is empty or missing headers, create missing headers without removing others.
-        """
+
         max_col = ws.max_column if ws.max_column and ws.max_column > 0 else 0
 
         # If sheet looks empty, write default headers into row 1
