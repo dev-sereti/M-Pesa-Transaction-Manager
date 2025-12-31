@@ -39,7 +39,7 @@ class ExcelHandler:
 
         self._ensure_workbook_exists()
         self._ensure_sheet_exists()
-        
+
     # Public API
     def append_transactions(self, transactions: List[Transaction], update_existing: bool = False) -> bool:
         try:
@@ -75,12 +75,6 @@ class ExcelHandler:
             return False
 
     def upsert_from_database(self, db_rows: List[Dict[str, Any]], update_existing: bool = True) -> bool:
-        """
-        Ensures all DB transactions exist in the Transaction sheet.
-        By default it updates existing rows and appends missing ones.
-
-        This does not clear the sheet (so it won't delete manual columns/data).
-        """
         try:
             wb = load_workbook(self.excel_path)
             ws = self._get_or_create_sheet(wb)
