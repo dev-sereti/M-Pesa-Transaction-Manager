@@ -15,13 +15,6 @@ from scr.models.transaction import Transaction
 
 class ExcelHandler:
 
-    # Updates only one worksheet ('Transaction') in an existing workbook.
-
-    # - Does not delete/overwrite other sheets.
-    # - Appends new transactions.
-    # - Optionally updates existing rows matched by Transaction Code (upsert).
-    # - Adds missing required headers without deleting existing custom columns.
-
     DEFAULT_HEADERS = [
         "Transaction Code",
         "Date",
