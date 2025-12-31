@@ -108,18 +108,12 @@ class ExcelHandler:
             return False
 
     def export_from_database(self, db_manager) -> bool:
-        """
-        Backward-compatible method name for your GUI:
-        - Pull all rows from DB
-        - Upsert into Transaction sheet
-        - Does not touch other sheets
-        """
+
         rows = db_manager.get_all_transactions()
         return self.upsert_from_database(rows, update_existing=True)
 
-    # -----------------------------
     # Workbook / Sheet helpers
-    # -----------------------------
+   
     def _ensure_workbook_exists(self) -> None:
         if self.excel_path.exists():
             return
