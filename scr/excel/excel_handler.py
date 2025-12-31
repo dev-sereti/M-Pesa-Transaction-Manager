@@ -2,16 +2,15 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, cast
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.worksheet import Worksheet
+from openpyxl.workbook.workbook import Workbook as OpenPyxlWorkbook
 
 from scr.models.transaction import Transaction
-
-
-Record = Union[Transaction, Dict[str, Any]]
 
 
 class ExcelHandler:
@@ -39,18 +38,13 @@ class ExcelHandler:
         self.excel_path = Path(excel_path)
         self.sheet_name = sheet_name
 
-        # Create file if missing, and ensure the target sheet exists
         self._ensure_workbook_exists()
         self._ensure_sheet_exists()
 
     # -----------------------------
     # Public API
     # -----------------------------
-    def append_transactions(
-        self,
-        transactions: List[Transaction],
-        update_existing: bool = False,
-    ) -> bool:
+    def append_transactions(self, transactions: List[Transaction], update_existing: bool = False) -> bool:
         """
         Append transactions into the Transaction sheet.
 
@@ -58,6 +52,7 @@ class ExcelHandler:
           - If Transaction Code already exists, update known columns in that row
             without touching any other columns (e.g., Category/Notes remain).
           - Otherwise append a new row.
+
         If update_existing=False:
           - Skip duplicates (existing Transaction Code).
         """
@@ -67,7 +62,6 @@ class ExcelHandler:
 
             header_map = self._get_or_create_headers(ws)
             code_col = header_map["Transaction Code"]
-
             code_to_row = self._build_code_index(ws, code_col)
 
             for tx in transactions:
@@ -89,15 +83,12 @@ class ExcelHandler:
             self._auto_fit_columns(ws, header_map)
             wb.save(self.excel_path)
             return True
+
         except Exception as e:
             print(f"Error updating Excel workbook: {e}")
             return False
 
-    def upsert_from_database(
-        self,
-        db_rows: List[Dict[str, Any]],
-        update_existing: bool = True,
-    ) -> bool:
+    def upsert_from_database(self, db_rows: List[Dict[str, Any]], update_existing: bool = True) -> bool:
         """
         Ensures all DB transactions exist in the Transaction sheet.
         By default it updates existing rows and appends missing ones.
@@ -131,6 +122,7 @@ class ExcelHandler:
             self._auto_fit_columns(ws, header_map)
             wb.save(self.excel_path)
             return True
+
         except Exception as e:
             print(f"Error upserting DB rows to Excel: {e}")
             return False
@@ -152,9 +144,15 @@ class ExcelHandler:
         if self.excel_path.exists():
             return
 
-        wb = Workbook()
-        ws = wb.active
-        ws.title = self.sheet_name
+        wb: OpenPyxlWorkbook = Workbook()
+
+        # Some type stubs mark wb.active as Optional; guard for static type checkers.
+        ws_opt = getattr(wb, "active", None)
+        if ws_opt is None:
+            ws: Worksheet = wb.create_sheet(self.sheet_name)
+        else:
+            ws = cast(Worksheet, ws_opt)
+            ws.title = self.sheet_name
 
         for col_idx, h in enumerate(self.DEFAULT_HEADERS, start=1):
             ws.cell(row=1, column=col_idx, value=h)
@@ -169,21 +167,29 @@ class ExcelHandler:
         _ = self._get_or_create_sheet(wb)
         wb.save(self.excel_path)
 
-    def _get_or_create_sheet(self, wb):
-        # Case-insensitive match
+    def _get_or_create_sheet(self, wb: OpenPyxlWorkbook) -> Worksheet:
         target = self.sheet_name.strip().lower()
         for name in wb.sheetnames:
             if name.strip().lower() == target:
-                return wb[name]
-        return wb.create_sheet(self.sheet_name)
+                return cast(Worksheet, wb[name])
+        return cast(Worksheet, wb.create_sheet(self.sheet_name))
 
-    def _get_or_create_headers(self, ws) -> Dict[str, int]:
+    def _get_or_create_headers(self, ws: Worksheet) -> Dict[str, int]:
         """
-        Returns a mapping: header name -> column index.
+        Returns mapping: header name -> column index.
         If sheet is empty or missing headers, create missing headers without removing others.
         """
-        # If sheet looks empty, write headers
-        if ws.max_row < 1 or all((ws.cell(1, c).value is None for c in range(1, ws.max_column + 1))):
+        max_col = ws.max_column if ws.max_column and ws.max_column > 0 else 0
+
+        # If sheet looks empty, write default headers into row 1
+        if ws.max_row < 1 or max_col == 0:
+            for col_idx, h in enumerate(self.DEFAULT_HEADERS, start=1):
+                ws.cell(row=1, column=col_idx, value=h)
+            self._format_header(ws, len(self.DEFAULT_HEADERS))
+            return {h: i for i, h in enumerate(self.DEFAULT_HEADERS, start=1)}
+
+        # If row 1 is empty across existing columns, treat as empty header row
+        if all(ws.cell(1, c).value is None for c in range(1, max_col + 1)):
             for col_idx, h in enumerate(self.DEFAULT_HEADERS, start=1):
                 ws.cell(row=1, column=col_idx, value=h)
             self._format_header(ws, len(self.DEFAULT_HEADERS))
@@ -191,8 +197,9 @@ class ExcelHandler:
 
         # Read existing headers
         existing_headers: Dict[str, int] = {}
-        max_col = max(ws.max_column, len(self.DEFAULT_HEADERS))
-        for col_idx in range(1, max_col + 1):
+        scan_cols = max(max_col, len(self.DEFAULT_HEADERS))
+
+        for col_idx in range(1, scan_cols + 1):
             v = ws.cell(1, col_idx).value
             if v is None:
                 continue
@@ -200,7 +207,7 @@ class ExcelHandler:
             if header:
                 existing_headers[header] = col_idx
 
-        # Add missing required headers to the end
+        # Add missing required headers to the end (do not delete/overwrite existing)
         next_col = ws.max_column + 1
         changed = False
         for h in self.DEFAULT_HEADERS:
@@ -220,7 +227,7 @@ class ExcelHandler:
 
         return existing_headers
 
-    def _format_header(self, ws, header_col_count: int) -> None:
+    def _format_header(self, ws: Worksheet, header_col_count: int) -> None:
         header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
         header_font = Font(bold=True, color="FFFFFF")
         header_align = Alignment(horizontal="center", vertical="center")
@@ -233,10 +240,7 @@ class ExcelHandler:
             cell.font = header_font
             cell.alignment = header_align
 
-    def _build_code_index(self, ws, code_col: int) -> Dict[str, int]:
-        """
-        Builds an index of existing Transaction Code -> row number.
-        """
+    def _build_code_index(self, ws: Worksheet, code_col: int) -> Dict[str, int]:
         code_to_row: Dict[str, int] = {}
         if ws.max_row < 2:
             return code_to_row
@@ -253,7 +257,7 @@ class ExcelHandler:
     # -----------------------------
     # Writing helpers
     # -----------------------------
-    def _write_record_to_row(self, ws, header_map: Dict[str, int], row_idx: int, record: Dict[str, Any]) -> None:
+    def _write_record_to_row(self, ws: Worksheet, header_map: Dict[str, int], row_idx: int, record: Dict[str, Any]) -> None:
         """
         Writes only known mapped columns. Does not touch other columns on that row.
         """
@@ -269,10 +273,7 @@ class ExcelHandler:
             elif header in ("Amount", "Fee", "Balance"):
                 cell.number_format = "#,##0.00"
 
-    def _auto_fit_columns(self, ws, header_map: Dict[str, int]) -> None:
-        """
-        Best-effort width adjustment for the Transaction sheet only.
-        """
+    def _auto_fit_columns(self, ws: Worksheet, header_map: Dict[str, int]) -> None:
         for header, col_idx in header_map.items():
             max_len = len(header)
             for r in range(2, min(ws.max_row, 5000) + 1):
