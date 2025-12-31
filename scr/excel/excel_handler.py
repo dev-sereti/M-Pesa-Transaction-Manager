@@ -224,13 +224,11 @@ class ExcelHandler:
                 code_to_row[code] = r
         return code_to_row
 
-    # -----------------------------
     # Writing helpers
-    # -----------------------------
+
     def _write_record_to_row(self, ws: Worksheet, header_map: Dict[str, int], row_idx: int, record: Dict[str, Any]) -> None:
-        """
-        Writes only known mapped columns. Does not touch other columns on that row.
-        """
+       
+        # Writes only known mapped columns. Does not touch other columns on that row.
         for header, col_idx in header_map.items():
             if header not in record:
                 continue
@@ -252,15 +250,13 @@ class ExcelHandler:
                     continue
                 max_len = max(max_len, len(str(v)))
             ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 2, 50)
-
-    # -----------------------------
     # Normalization helpers
-    # -----------------------------
+   
     def _as_float(self, value: Any, default: float = 0.0) -> float:
-        """
-        Convert a value that may be None/number/string to float.
-        Handles values like 'KSh 1,234.00', '1,234', '-', ''.
-        """
+        
+        # Convert a value that may be None/number/string to float.
+        # Handles values like 'KSh 1,234.00', '1,234', '-', ''.
+  
         if value is None:
             return default
 
