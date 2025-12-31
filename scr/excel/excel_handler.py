@@ -14,14 +14,13 @@ from scr.models.transaction import Transaction
 
 
 class ExcelHandler:
-    """
-    Updates only one worksheet (default: 'Transaction') in an existing workbook.
 
-    - Does not delete/overwrite other sheets.
-    - Appends new transactions.
-    - Optionally updates existing rows matched by Transaction Code (upsert).
-    - Adds missing required headers without deleting existing custom columns.
-    """
+    # Updates only one worksheet ('Transaction') in an existing workbook.
+
+    # - Does not delete/overwrite other sheets.
+    # - Appends new transactions.
+    # - Optionally updates existing rows matched by Transaction Code (upsert).
+    # - Adds missing required headers without deleting existing custom columns.
 
     DEFAULT_HEADERS = [
         "Transaction Code",
@@ -40,22 +39,9 @@ class ExcelHandler:
 
         self._ensure_workbook_exists()
         self._ensure_sheet_exists()
-
-    # -----------------------------
+        
     # Public API
-    # -----------------------------
     def append_transactions(self, transactions: List[Transaction], update_existing: bool = False) -> bool:
-        """
-        Append transactions into the Transaction sheet.
-
-        If update_existing=True:
-          - If Transaction Code already exists, update known columns in that row
-            without touching any other columns (e.g., Category/Notes remain).
-          - Otherwise append a new row.
-
-        If update_existing=False:
-          - Skip duplicates (existing Transaction Code).
-        """
         try:
             wb = load_workbook(self.excel_path)
             ws = self._get_or_create_sheet(wb)
