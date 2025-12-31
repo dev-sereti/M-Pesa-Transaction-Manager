@@ -1,0 +1,7 @@
+# Ignore database and Excel files
+mpesa_transactions.db
+transactions.xlsx
+
+# (optional) ignore all db & excel files
+*.db
+*.xlsx
