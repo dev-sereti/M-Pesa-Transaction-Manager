@@ -9,7 +9,7 @@ def main():
     
     # Apply theme
     style = ttk.Style()
-    style.theme_use('clam')  # Options: 'clam', 'alt', 'default', 'classic'
+    style.theme_use('clam')  #'clam', 'alt', 'default', 'classic'
     
     # Custom button style
     style.configure('Accent.TButton', font=('Arial', 10, 'bold'))
