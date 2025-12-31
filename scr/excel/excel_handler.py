@@ -43,24 +43,21 @@ class ExcelHandler:
         self._ensure_workbook_exists()
         self._ensure_sheet_exists()
 
-    # -----------------------------
     # Public API
-    # -----------------------------
     def append_transactions(
         self,
         transactions: List[Transaction],
         update_existing: bool = False,
     ) -> bool:
-        """
-        Append transactions into the Transaction sheet.
+    
+        # Append transactions into the Transaction sheet.
 
-        If update_existing=True:
-          - If Transaction Code already exists, update known columns in that row
-            without touching any other columns (e.g., Category/Notes remain).
-          - Otherwise append a new row.
-        If update_existing=False:
-          - Skip duplicates (existing Transaction Code).
-        """
+        # If update_existing=True:
+        # If Transaction Code already exists, update known columns in that row
+        #     without touching any other columns (e.g., Category/Notes remain).
+        # Otherwise append a new row.
+        # If update_existing=False:
+        #   - Skip duplicates (existing Transaction Code).
         try:
             wb = load_workbook(self.excel_path)
             ws = self._get_or_create_sheet(wb)
@@ -111,12 +108,11 @@ class ExcelHandler:
         db_rows: List[Dict[str, Any]],
         update_existing: bool = True,
     ) -> bool:
-        """
-        Ensures all DB transactions exist in the Transaction sheet.
-        By default it updates existing rows and appends missing ones.
+        
+        # Ensures all DB transactions exist in the Transaction sheet.
+        # By default it updates existing rows and appends missing ones.
 
-        This does NOT clear the sheet (so it won't delete manual columns/data).
-        """
+        # This does NOT clear the sheet (so it won't delete manual columns/data).
         try:
             wb = load_workbook(self.excel_path)
             ws = self._get_or_create_sheet(wb)
